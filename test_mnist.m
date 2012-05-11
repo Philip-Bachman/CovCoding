@@ -9,8 +9,8 @@ load('mnist_data.mat');
 % Set up parameters for covariance code basis learning
 patch_count = 5000;
 patch_size = 8;
-round_count = 3;
-basis_count = 64;
+round_count = 200;
+basis_count = 256;
 spars = 16 / basis_count;
 lam_l1 = 1e-5;
 step = 16;
