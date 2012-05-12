@@ -9,7 +9,7 @@ load('mnist_data.mat');
 % Set up parameters for covariance code basis learning
 patch_count = 5000;
 patch_size = 8;
-round_count = 200;
+round_count = 300;
 basis_count = 256;
 spars = 16 / basis_count;
 lam_l1 = 1e-5;
@@ -95,13 +95,13 @@ Xt_cov = sparse(ZMUV(Xt_cov));
 Xt_omp = sparse(ZMUV(Xt_omp));
 fprintf('==================================================\n');
 fprintf('Testing COV features:\n');
-train(Yt,Xt_cov,'-s 4 -v 5');
+train(Yt,Xt_cov,'-s 2 -v 5');
 fprintf('==================================================\n');
 fprintf('Testing OMP features:\n');
-train(Yt,Xt_omp,'-s 4 -v 5');
+train(Yt,Xt_omp,'-s 2 -v 5');
 fprintf('==================================================\n');
 fprintf('Testing JOINT features:\n');
-train(Yt,[Xt_cov Xt_omp],'-s 4 -v 5');
+train(Yt,[Xt_cov Xt_omp],'-s 2 -v 5');
 
 
 
