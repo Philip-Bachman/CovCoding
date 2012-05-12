@@ -14,7 +14,7 @@ function [ patches ] = extract_patches( ims, w, patch_count, rows, cols, rgb )
 %   patches: ZMUNed randomly selected patches, each of size (1 x w*w*rgb)
 %
 im_count = size(ims,1);
-sample_count = round(patch_count*1.25);
+sample_count = round(patch_count*1.5);
 ws = w - 1;
 min_coord = 1;
 max_coord = min(rows, cols) - ws;

@@ -4,7 +4,7 @@ function [ W ] = compute_whitener( X )
 obs_dim = size(X,2);
 
 H = cov(X);
-[V D] = eigs(H, obs_dim);
+[V D] = eig(H);
 
 D = D + (1e-6 * eye(obs_dim));
 W = V * D^(-1/2) * V';

@@ -8,15 +8,16 @@ load('mnist_data.mat');
 
 % Set up parameters for covariance code basis learning
 patch_count = 5000;
-patch_size = 8;
-round_count = 200;
-basis_count = 256;
+patch_size = 6;
+round_count = 20;
+basis_count = 128;
 spars = 16 / basis_count;
 lam_l1 = 1e-5;
 step = 16;
 omp_count = 5;
 omp_patches = 10000;
-omp_step = 1;
+omp_step = 4;
+omp_l1 = 1e-5;
 
 % Compute a whitening transform to use with patches
 [ patches ] = extract_patches(X_mnist, patch_size, 250000, 28, 28, 1);
@@ -47,10 +48,10 @@ for r=1:round(round_count),
     patches = patches * W';
     if (r == 1)
         [ A_omp ] = learn_omp_bases(...
-            patches, basis_count, omp_count, omp_step, 1 );
+            patches, basis_count, omp_count, omp_step, 1, omp_l1 );
     else
         [ A_omp ] = learn_omp_bases(...
-            patches, basis_count, omp_count, omp_step, 1, A_omp );
+            patches, basis_count, omp_count, omp_step, 1, omp_l1, A_omp );
     end
 end
 
@@ -67,7 +68,7 @@ cov_feats = im_patch_features( X_mnist(1,:), A_cov, W );
 omp_feats = im_patch_features( X_mnist(1,:), A_omp, W );
 
 % Set up train/test parameters
-train_size = 10000;
+train_size = 5000;
 Xt_cov = zeros(train_size,numel(cov_feats));
 Xt_omp = zeros(train_size,numel(omp_feats));
 Yt = zeros(train_size,1);
