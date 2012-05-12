@@ -78,7 +78,7 @@ end
 
 % Perform "line search" for some descent sizes, taking the best step at end
 X_hat = covcode_decode(X_test, A, B_test);
-Xt_var = sum(sum((bsxfun(@minus,X_test,mean(X_test))).^2));
+Xt_var = sum(sum((bsxfun(@minus,X_test,mean(X_test,2))).^2));
 pre_err = sum(sum((X_test - X_hat).^2)) / Xt_var;
 best_step = min(trial_steps);
 best_err = pre_err;
