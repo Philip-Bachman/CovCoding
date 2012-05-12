@@ -8,16 +8,16 @@ load('mnist_data.mat');
 
 % Set up parameters for covariance code basis learning
 patch_count = 5000;
-patch_size = 6;
-round_count = 20;
-basis_count = 128;
-spars = 16 / basis_count;
-lam_l1 = 1e-5;
+patch_size = 8;
+round_count = 300;
+basis_count = 512;
+cov_spars = 8; %(16 / basis_count);
+lam_l1 = 1e-4;
 step = 16;
-omp_count = 5;
+omp_count = 8;
 omp_patches = 10000;
 omp_step = 4;
-omp_l1 = 1e-5;
+omp_l1 = 1e-4;
 
 % Compute a whitening transform to use with patches
 [ patches ] = extract_patches(X_mnist, patch_size, 250000, 28, 28, 1);
@@ -32,10 +32,10 @@ for r=1:round_count,
     patches = patches * W';
     if (r == 1)
         [ A_cov ] = learn_cov_bases(...
-            patches, basis_count, spars, lam_l1, step, 1);
+            patches, basis_count, cov_spars, lam_l1, step, 1);
     else
         [ A_cov ] = learn_cov_bases(...
-            patches, basis_count, spars, lam_l1, step, 1, A_cov);
+            patches, basis_count, cov_spars, lam_l1, step, 1, A_cov);
     end
 end
 
@@ -68,7 +68,7 @@ cov_feats = im_patch_features( X_mnist(1,:), A_cov, W );
 omp_feats = im_patch_features( X_mnist(1,:), A_omp, W );
 
 % Set up train/test parameters
-train_size = 5000;
+train_size = 10000;
 Xt_cov = zeros(train_size,numel(cov_feats));
 Xt_omp = zeros(train_size,numel(omp_feats));
 Yt = zeros(train_size,1);
@@ -96,13 +96,13 @@ Xt_cov = sparse(ZMUV(Xt_cov));
 Xt_omp = sparse(ZMUV(Xt_omp));
 fprintf('==================================================\n');
 fprintf('Testing COV features:\n');
-train(Yt,Xt_cov,'-s 2 -v 5');
+train(Yt,Xt_cov,'-s 4 -v 5');
 fprintf('==================================================\n');
 fprintf('Testing OMP features:\n');
-train(Yt,Xt_omp,'-s 2 -v 5');
-fprintf('==================================================\n');
-fprintf('Testing JOINT features:\n');
-train(Yt,[Xt_cov Xt_omp],'-s 2 -v 5');
+train(Yt,Xt_omp,'-s 4 -v 5');
+% fprintf('==================================================\n');
+% fprintf('Testing JOINT features:\n');
+% train(Yt,[Xt_cov Xt_omp],'-s 4 -v 5');
 
 
 
