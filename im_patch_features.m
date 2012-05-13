@@ -1,4 +1,4 @@
-function [ im_feats ] = im_patch_features( im, A, W )
+function [ im_feats ] = im_patch_features( im, A, split_neg, grid_count, W )
 % Generate features for a B/W image, given a (1 x d*d) uint8 representation
 % of the image. Bases for feature generation are given in A, from which we can
 % infer the patch size. Use the whitening transformation given in W on each
@@ -7,6 +7,9 @@ function [ im_feats ] = im_patch_features( im, A, W )
 % Parameters:
 %   im: the image for which to compute patch features (1 x im_dim^2)
 %   A: the bases to use for covcode features (w^2 x w^2 x basis_count)
+%   split_neg: 0/1, determines whether to split each features response into
+%              separate positive and negative components
+%   grid_count: the grid count along each dimension for feature aggregation
 %   W: an optional whitening transform for preprocessing (w^2 x w^2)
 % Outputs:
 %   im_feats: covcode features for the image
@@ -51,10 +54,25 @@ start_coords = min_coord:max_coord;
 % there will be four zones (upper-left, upper-right, lower-left, lower-right).
 zone_map = ones(numel(start_coords),numel(start_coords));
 nsc = numel(start_coords);
-zone_map(1:round(nsc / 2),1:round(nsc / 2)) = 1;
-zone_map(1:round(nsc / 2),(round(nsc / 2) + 1):end) = 2;
-zone_map((round(nsc / 2) + 1):end,1:round(nsc / 2)) = 3;
-zone_map((round(nsc / 2) + 1):end,(round(nsc / 2) + 1):end) = 4;
+z_coords = cell(grid_count,1);
+for z=1:grid_count,
+    z_start = round(((z-1) * nsc) / grid_count) + 1;
+    if (z < grid_count)
+        z_end = round((z * nsc) / grid_count);
+    else
+        z_end = nsc;
+    end
+    z_coords{z} = z_start:z_end;
+end
+z_idx = 1;
+for z1=1:grid_count,
+    for z2=1:grid_count,
+        z1_coords = z_coords{z1};
+        z2_coords = z_coords{z2};
+        zone_map(z1_coords,z2_coords) = z_idx;
+        z_idx = z_idx + 1;
+    end
+end
 zone_count = numel(unique(zone_map(:)));
 
 patch_vals = zeros(numel(start_coords)*numel(start_coords),patch_pix);
@@ -78,7 +96,7 @@ for row_i=1:numel(start_coords),
         patch_idx = patch_idx + 1;
     end
 end
-patch_feats = compute_features(patch_vals, A, basis_count, feat_type);
+patch_feats = compute_features(patch_vals,A,basis_count,feat_type,split_neg);
 im_feats = zeros(zone_count,size(patch_feats,2));
 for i=1:zone_count,
     im_feats(i,:) = zonal_features(patch_feats(patch_zones == i,:));
@@ -89,7 +107,8 @@ return
 
 end
 
-function [ patch_feats ] = compute_features(patches, A, basis_count, feat_type)
+function [ patch_feats ] = compute_features(...
+    patches, A, basis_count, feat_type, split_neg)
 % Compute features for the given patches, given the bases in A.
 %
 % Parameters:
@@ -97,6 +116,8 @@ function [ patch_feats ] = compute_features(patches, A, basis_count, feat_type)
 %   A: bases for features (patch_pix (x patch_pix) x basis_count)
 %   basis_count: the number of bases in A
 %   feat_type: whether to compute linear or covariance features (1 or 2)
+%   split_neg: 0/1, determines whether to split each features response into
+%              separate positive and negative components
 % Outputs:
 %   patch_feats: the features computed per-patch (patch_count x basis_count)
 %
@@ -116,12 +137,14 @@ if (feat_type == 1)
 else
     patch_feats(patch_idx,:) = patches * A;
 end
-% Split patch features into negative and positive components
-pf1 = patch_feats;
-pf2 = -patch_feats;
-pf1(pf1 < 0) = 0;
-pf2(pf2 < 0) = 0;
-patch_feats = [pf1 pf2];
+if (split_neg == 1)
+    % Split patch features into negative and positive components
+    pf1 = patch_feats;
+    pf2 = -patch_feats;
+    pf1(pf1 < 0) = 0;
+    pf2(pf2 < 0) = 0;
+    patch_feats = [pf1 pf2];
+end
 return
 end
 

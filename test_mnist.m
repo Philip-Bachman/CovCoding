@@ -9,12 +9,14 @@ load('mnist_data.mat');
 % Set up parameters for covariance code basis learning
 patch_count = 5000;
 patch_size = 8;
-round_count = 300;
-basis_count = 512;
-cov_spars = 8; %(16 / basis_count);
+round_count = 50;
+basis_count = 128;
+grid_count = 3;
+cov_spars = 5; %(16 / basis_count);
 lam_l1 = 1e-4;
 step = 16;
-omp_count = 8;
+split_neg = 1;
+omp_count = 5;
 omp_patches = 10000;
 omp_step = 4;
 omp_l1 = 1e-4;
@@ -64,11 +66,11 @@ save('mnist_test.mat');
 
 % Get sample feature vectors for both basis types, to find the dimension of the
 % feature vectors for each basis type.
-cov_feats = im_patch_features( X_mnist(1,:), A_cov, W );
-omp_feats = im_patch_features( X_mnist(1,:), A_omp, W );
+cov_feats = im_patch_features( X_mnist(1,:), A_cov, split_neg, grid_count, W );
+omp_feats = im_patch_features( X_mnist(1,:), A_omp, split_neg, grid_count, W );
 
 % Set up train/test parameters
-train_size = 10000;
+train_size = 7500;
 Xt_cov = zeros(train_size,numel(cov_feats));
 Xt_omp = zeros(train_size,numel(omp_feats));
 Yt = zeros(train_size,1);
@@ -77,8 +79,10 @@ idx_train = randsample(1:60000,train_size);
 % Convert training/testing images to both feature representations
 fprintf('Converting ims => features:');
 for i=1:train_size,
-    cov_feats = im_patch_features( X_mnist(idx_train(i),:), A_cov, W );
-    omp_feats = im_patch_features( X_mnist(idx_train(i),:), A_omp, W );
+    cov_feats = im_patch_features(...
+        X_mnist(idx_train(i),:), A_cov, split_neg, grid_count, W);
+    omp_feats = im_patch_features(...
+        X_mnist(idx_train(i),:), A_omp, split_neg, grid_count, W);
     Xt_cov(i,:) = cov_feats;
     Xt_omp(i,:) = omp_feats;
     Yt(i) = Y_mnist(idx_train(i));
