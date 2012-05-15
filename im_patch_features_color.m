@@ -1,26 +1,26 @@
-function [ im_feats ] = im_patch_features( im, A, split_neg, grid_count, W )
-% Generate features for a B/W image, given a (1 x d*d) uint8 representation
+function [im_feats] = im_patch_features_color(im, A, split_neg, grid_count, W)
+% Generate features for a color image, given a (1 x d*d*3) uint8 representation
 % of the image. Bases for feature generation are given in A, from which we can
 % infer the patch size. Use the whitening transformation given in W on each
 % patch prior to feature computation.
 %
 % Parameters:
-%   im: the image for which to compute patch features (1 x im_dim^2)
-%   A: the bases to use for covcode features (w^2 x w^2 x basis_count)
+%   im: the image for which to compute patch features (1 x (im_dim^2 * 3))
+%   A: the bases to use for covcode features ((w^2*3) x (w^2*3) x basis_count)
 %   split_neg: 0/1, determines whether to split each features response into
 %              separate positive and negative components
 %   grid_count: the grid count along each dimension for feature aggregation
-%   W: an optional whitening transform for preprocessing (w^2 x w^2)
+%   W: an optional whitening transform for preprocessing ((w^2*3) x (w^2*3))
 % Outputs:
 %   im_feats: covcode features for the image
 %
 
-im_dim = round(sqrt(numel(im)));
-if (abs(im_dim - sqrt(numel(im))) > 0.01)
+im_dim = round(sqrt(numel(im)/3));
+if (abs(im_dim - sqrt(numel(im)/3)) > 0.01)
     error('patch_features: function only valid for square images.\n');
 end
 % Reshape image to native square/2d form
-im = double(reshape(im, im_dim, im_dim));
+im = double(reshape(im, im_dim, im_dim, 3));
 % Get the number of bases and the size of patches to process
 if (numel(size(A)) == 3)
     % 3D A means we are computing covariance features
@@ -35,14 +35,16 @@ else
         error('patch_features: A should be either 2 or 3 dimensional.\n');
     end
 end
-w = round(sqrt(size(A,1)));
+w = round(sqrt(size(A,1) / 3));
 ws = w - 1;
-patch_pix = w*w;
+patch_pix = w*w*3;
 % Check if a whitening transform was given for preprocessing
 if ~exist('W','var')
-    W = eye(patch_pix);
+    W.M = zeros(1,patch_pix);
+    W.W = eye(patch_pix);
 else
-    if (size(W,1) ~= patch_pix || size(W,2) ~= patch_pix)
+    if (size(W.W,1) ~= patch_pix || size(W.W,2) ~= patch_pix ||...
+            size(W.M,2) ~= patch_pix)
         error('patch_features: whitener has the wrong dimension\n');
     end
 end
@@ -51,7 +53,7 @@ min_coord = 1;
 max_coord = im_dim - ws;
 start_coords = min_coord:max_coord;
 % Create a map for identifying the zone to which each patch belongs, for now
-% there will be four zones (upper-left, upper-right, lower-left, lower-right).
+% there will be grid_count^2 zones.
 zone_map = ones(numel(start_coords),numel(start_coords));
 nsc = numel(start_coords);
 z_coords = cell(grid_count,1);
@@ -82,15 +84,15 @@ for row_i=1:numel(start_coords),
     row = start_coords(row_i);
     for col_i=1:numel(start_coords),
         col = start_coords(col_i);
-        % Extract the patch at this location and mark its zone
-        patch = reshape(im(row:(row+ws),col:(col+ws)),1,patch_pix);
+        % Extract the patch at this location, and mark its zone
+        patch = reshape(im(row:(row+ws),col:(col+ws),:),1,patch_pix);
         patch_vals(patch_idx,:) = patch(:);
         patch_zones(patch_idx) = zone_map(row,col);
         patch_idx = patch_idx + 1;
     end
 end
 patch_vals = ZMUN(patch_vals);
-patch_vals = patch_vals * W';
+patch_vals = bsxfun(@minus,patch_vals,W.M) * W.W';
 patch_feats = compute_features(patch_vals,A,basis_count,feat_type,split_neg);
 im_feats = zeros(zone_count,size(patch_feats,2));
 for i=1:zone_count,
@@ -118,7 +120,7 @@ function [ patch_feats ] = compute_features(...
 %
 patch_feats = zeros(size(patches,1),basis_count);
 patch_norms = sqrt(sum(patches.^2,2));
-patch_idx = patch_norms > 1e-3;
+patch_idx = patch_norms > 1e-4;
 patches = patches(patch_idx,:);
 patch_norms = sqrt(sum(patches.^2,2));
 if (feat_type == 1)

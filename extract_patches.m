@@ -26,8 +26,7 @@ for i=1:sample_count,
     if (mod(i, max(round(sample_count/50),1)) == 0)
         fprintf('.');
     end
-    idx = randi(im_count);
-    im = reshape(ims(idx,:),rows,cols,rgb);
+    im = reshape(ims(randi(im_count),:),rows,cols,rgb);
     row = coords(i,1);
     col = coords(i,2);
     patch = reshape(im(row:(row+ws),col:(col+ws),:),1,w*w*rgb);
