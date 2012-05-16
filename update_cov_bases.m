@@ -64,7 +64,7 @@ if (noise_lvl > 0.01)
 end
 
 % Get the gradient descent step sizes to check in "line search"
-trial_steps = [0.25 0.5 1.0];
+trial_steps = [1.0];
 trial_steps = trial_steps .* step_size;
 
 % Get the validation set with which to perform "line search"

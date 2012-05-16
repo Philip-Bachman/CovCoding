@@ -66,12 +66,6 @@ for i=1:omp_num,
         w = (Xr(j,:) * A(:,idx)) / A_sqs(idx);
         Xr(j,:) = Xr(j,:) - (A(:,idx)' .* w);
         B(j,idx) = B(j,idx) + w;
-%         % Check if this basis was previously selected for this observation
-%         if (i > 1)
-%             if (numel(find(B_idx(j,1:i-1) == idx)) > 0)
-%                 fprintf('*');
-%             end
-%         end
     end
     fprintf('\n');
 end
@@ -109,6 +103,7 @@ fprintf('    pre_obj: %.6f\n', obj);
 
 A_grad = ((Xr' * B) ./ obs_count) + ((A ./ sqrt(A.^2 + 1e-5)) .* lam_l1);
 A_new = A - (A_grad .* step);
+A_new = bsxfun(@rdivide,A_new,sqrt(sum(A_new.^2) + 1e-5));
 Xh = B * A_new';
 obj = sum((X(:) - Xh(:)).^2) / obs_var;
 fprintf('    post_obj: %.6f\n', obj);
