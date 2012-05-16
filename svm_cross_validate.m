@@ -28,8 +28,13 @@ for r=1:cv_rounds,
     tr_idx = randsample(obs_count, round((1 - cv_frac) * obs_count));
     te_idx = setdiff(1:obs_count, tr_idx);
     % Using the sampled train/test split, do SVM for all lams
-    [opt_theta accs svm_eval] = svm_train_test(...
-        X(tr_idx,:), Y(tr_idx), X(te_idx,:), Y(te_idx), lams );
+    if (r == 1)
+        [opt_theta accs svm_eval] = svm_train_test(...
+            X(tr_idx,:), Y(tr_idx), X(te_idx,:), Y(te_idx), lams );
+    else
+        [opt_theta accs svm_eval] = svm_train_test(...
+            X(tr_idx,:), Y(tr_idx), X(te_idx,:), Y(te_idx), lams, opt_theta );
+    end
     % Records train/test accuracies for this cross-validation round
     acc_tr(r,:) = accs(:,1)';
     acc_te(r,:) = accs(:,2)';

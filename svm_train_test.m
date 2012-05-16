@@ -1,4 +1,5 @@
-function [ opt_theta accs svm_eval ] = svm_train_test( Xtr, Ytr, Xte, Yte, lams )
+function [ opt_theta accs svm_eval ] = svm_train_test(...
+    Xtr, Ytr, Xte, Yte, lams, theta_init )
 % Compute svm training/testing error over a range of regularization weights
 %
 % Parameters:
@@ -7,6 +8,7 @@ function [ opt_theta accs svm_eval ] = svm_train_test( Xtr, Ytr, Xte, Yte, lams 
 %   Xtr: testing observations
 %   Ytr: classes (integer-valued) for testing observations
 %   lams: sequence of lambda/regularizations weights to test
+%   theta_init: optional initialization theta
 % Outputs:
 %   opt_theta: learned parameters for lambda with best test accuracy
 %   accs: array of size (numel(lams) x 2), with train/test acc for each lambda
@@ -42,7 +44,15 @@ accs = zeros(numel(lams),2);
 fprintf('Training/testing with %d lambdas:\n',numel(lams));
 for l_num=1:numel(lams),
     % Train an SVM using one of the given lambdas
-    theta = svm_coates(Xtr, Ytr_i, lams(l_num), opts);
+    if (l_num == 1)
+        if exist('theta_init','var')
+            theta = svm_coates(Xtr, Ytr_i, lams(l_num), opts, theta_init);
+        else
+            theta = svm_coates(Xtr, Ytr_i, lams(l_num), opts);
+        end
+    else
+        theta = svm_coates(Xtr, Ytr_i, lams(l_num), opts, opt_theta);
+    end
     % Evaluate SVM with theta learned for this lambda
     [vals, class_tr] = max(Xtr*theta, [], 2);
     [vals, class_te] = max(Xte*theta, [], 2);
@@ -71,13 +81,17 @@ svm_eval = @( X ) svm_class(X, opt_theta);
 return
 end
 
-function theta = svm_coates(trainXC, trainY, C, opts)
+function theta = svm_coates(trainXC, trainY, C, opts, theta_i)
 % Train an SVM using general function minimization
 %
 % Based on code by Adam Coates (from sc_vq_demo.tgz)
 %
 numClasses = max(trainY);
-w0 = zeros(size(trainXC,2)*numClasses, 1);
+if exist('theta_i','var')
+    w0 = theta_i(:);
+else
+    w0 = zeros(size(trainXC,2)*numClasses, 1);
+end
 w = minFunc(@l2svmloss_coates, w0, opts, trainXC, trainY, numClasses, C);
 theta = reshape(w, size(trainXC,2), numClasses);
 return

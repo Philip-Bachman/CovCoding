@@ -1,4 +1,5 @@
-function [im_feats] = im_patch_features_color(im, A, split_neg, grid_count, W)
+function [im_feats] = im_patch_features_color(...
+    im, A, thresh, split_neg, grid_count, W)
 % Generate features for a color image, given a (1 x d*d*3) uint8 representation
 % of the image. Bases for feature generation are given in A, from which we can
 % infer the patch size. Use the whitening transformation given in W on each
@@ -7,6 +8,7 @@ function [im_feats] = im_patch_features_color(im, A, split_neg, grid_count, W)
 % Parameters:
 %   im: the image for which to compute patch features (1 x (im_dim^2 * 3))
 %   A: the bases to use for covcode features ((w^2*3) x (w^2*3) x basis_count)
+%   thresh: threshold value for "triangle" activation function
 %   split_neg: 0/1, determines whether to split each features response into
 %              separate positive and negative components
 %   grid_count: the grid count along each dimension for feature aggregation
@@ -93,10 +95,11 @@ for row_i=1:numel(start_coords),
 end
 patch_vals = ZMUN(patch_vals);
 patch_vals = bsxfun(@minus,patch_vals,W.M) * W.W';
-patch_feats = compute_features(patch_vals,A,basis_count,feat_type,split_neg);
+patch_feats = compute_features(...
+    patch_vals, A, basis_count, feat_type, thresh, split_neg);
 im_feats = zeros(zone_count,size(patch_feats,2));
 for i=1:zone_count,
-    im_feats(i,:) = zonal_features(patch_feats(patch_zones == i,:));
+    im_feats(i,:) = zonal_features(patch_feats(patch_zones == i,:), 2);
 end
 im_feats = im_feats(:);
 
@@ -105,7 +108,7 @@ return
 end
 
 function [ patch_feats ] = compute_features(...
-    patches, A, basis_count, feat_type, split_neg)
+    patches, A, basis_count, feat_type, thresh, split_neg)
 % Compute features for the given patches, given the bases in A.
 %
 % Parameters:
@@ -113,6 +116,7 @@ function [ patch_feats ] = compute_features(...
 %   A: bases for features (patch_pix (x patch_pix) x basis_count)
 %   basis_count: the number of bases in A
 %   feat_type: whether to compute linear or covariance features (1 or 2)
+%   thresh: threshold value for "triangle" activation function
 %   split_neg: 0/1, determines whether to split each features response into
 %              separate positive and negative components
 % Outputs:
@@ -134,6 +138,10 @@ if (feat_type == 1)
 else
     patch_feats(patch_idx,:) = patches * A;
 end
+% Apply "triangle" activation function using thresh
+patch_feats(abs(patch_feats) < thresh) = 0;
+patch_feats(patch_feats > 0) = patch_feats(patch_feats > 0) - thresh;
+patch_feats(patch_feats < 0) = patch_feats(patch_feats < 0) + thresh;
 if (split_neg == 1)
     % Split patch features into negative and positive components
     pf1 = patch_feats;
@@ -145,18 +153,23 @@ end
 return
 end
 
-function [ zone_feats ] = zonal_features( patch_feats )
+function [ zone_feats ] = zonal_features( patch_feats, agg_type )
 % Compute a set of "zonal aggregate" features given the features for each patch
 % in the given zone. For now, compute soft-max-like features.
 %
 % Parameters;
 %   patch_feats: base features for each patch in the zone
+%   agg_type: how to compute aggregate features (1=mean, 2=softmax)
 % Outputs:
 %   zone_feats: aggregate features for the zone
 %
-alpha = 1.0;
-feat_exp = exp(abs(patch_feats .* alpha));
-zone_feats = sum(patch_feats .* feat_exp) ./ sum(feat_exp);
+if (agg_type == 1)
+    zone_feats = mean(patch_feats);
+else
+    alpha = 1.0;
+    feat_exp = exp(abs(patch_feats .* alpha));
+    zone_feats = sum(patch_feats .* feat_exp) ./ sum(feat_exp); 
+end
 return
 end
 
